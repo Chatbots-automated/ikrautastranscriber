@@ -28,19 +28,21 @@ export default async function handler(req, res) {
       query {
         boards(ids: ${boardId}) {
           name
-          items {
-            id
-            name
-            column_values {
+          items_page(limit: 100) {
+            items {
               id
-              title
-              type
-              text
-              ... on PhoneValue {
-                phone
-              }
-              ... on MirrorValue {
-                display_value
+              name
+              column_values {
+                id
+                title
+                type
+                text
+                ... on PhoneValue {
+                  phone
+                }
+                ... on MirrorValue {
+                  display_value
+                }
               }
             }
           }
@@ -75,10 +77,11 @@ export default async function handler(req, res) {
       continue;
     }
 
+    const items = board.items_page.items;
     console.log(`📘 Board name: ${board.name}`);
-    console.log(`📦 Total items: ${board.items.length}`);
+    console.log(`📦 Total items: ${items.length}`);
 
-    for (const item of board.items) {
+    for (const item of items) {
       console.log(`🧾 Item: ${item.name} (ID: ${item.id})`);
 
       for (const column of item.column_values) {
