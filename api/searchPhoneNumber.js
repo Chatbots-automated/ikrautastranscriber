@@ -34,9 +34,11 @@ export default async function handler(req, res) {
               name
               column_values {
                 id
-                title
                 type
                 text
+                column {
+                  title
+                }
                 ... on PhoneValue {
                   phone
                 }
@@ -85,7 +87,8 @@ export default async function handler(req, res) {
       console.log(`🧾 Item: ${item.name} (ID: ${item.id})`);
 
       for (const column of item.column_values) {
-        const { id, title, type } = column;
+        const { id, type } = column;
+        const title = column.column?.title || 'Untitled';
         let value = column.text || '';
 
         if (type === 'mirror') {
