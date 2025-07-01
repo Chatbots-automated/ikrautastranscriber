@@ -2,14 +2,13 @@ import fetch from 'node-fetch';
 
 const MONDAY_API_URL = 'https://api.monday.com/v2';
 const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
-
 const BOARD_IDS = [1645436514, 2177969450, 1645017543];
 
 export default async function handler(req, res) {
   const rawPhone = req.query.phone;
   if (!rawPhone) return res.status(400).json({ error: 'Missing phone query param' });
 
-  const phoneToSearch = rawPhone.replace(/\D/g, ''); // Cleaned number like 37061234567
+  const phoneToSearch = rawPhone.replace(/\D/g, ''); // Normalize phone
 
   const headers = {
     'Content-Type': 'application/json',
@@ -19,7 +18,7 @@ export default async function handler(req, res) {
   const matches = [];
 
   for (const boardId of BOARD_IDS) {
-    const itemsRes = await fetch(MONDAY_API_URL, {
+    const response = await fetch(MONDAY_API_URL, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -33,7 +32,14 @@ export default async function handler(req, res) {
                 column_values {
                   id
                   title
+                  type
                   text
+                  ... on PhoneValue {
+                    phone
+                  }
+                  ... on MirrorValue {
+                    display_value
+                  }
                 }
               }
             }
@@ -42,26 +48,36 @@ export default async function handler(req, res) {
       })
     });
 
-    const data = await itemsRes.json();
+    const data = await response.json();
     const board = data?.data?.boards?.[0];
     if (!board) continue;
 
     for (const item of board.items) {
       for (const column of item.column_values) {
-        const cleaned = column.text?.replace(/\D/g, '');
-        if (cleaned && cleaned.includes(phoneToSearch)) {
+        let value = column.text || '';
+
+        if (column.type === 'mirror') {
+          value = column.display_value || '';
+        }
+
+        if (column.type === 'phone') {
+          value = column.phone || '';
+        }
+
+        const cleaned = value.replace(/\D/g, '');
+        if (cleaned.includes(phoneToSearch)) {
           matches.push({
             board: board.name,
             boardId,
             item: item.name,
             itemId: item.id,
             column: column.title,
-            value: column.text
+            value: value
           });
         }
       }
     }
   }
 
-  res.status(200).json({ found: matches.length, matches });
+  return res.status(200).json({ found: matches.length, matches });
 }
